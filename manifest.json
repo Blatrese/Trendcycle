@@ -1,0 +1,8 @@
+{
+  "name": "Trendcycle",
+  "short_name": "Trendcycle",
+  "start_url": "/Trendcycle/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000"
+}
