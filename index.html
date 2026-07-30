@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TrendCycle Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- CSV Parser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+  
+  <style>
+    :root {
+      --bg-body: #f1f5f9; --bg-card: #ffffff; --bg-card-subtle: #f8fafc;
+      --text-main: #0f172a; --text-muted: #64748b; --border-color: #e2e8f0;
+      --color-profit: #10b981; --color-loss: #ef4444; --color-neutral: #f59e0b;
+      --glass-bg: rgba(255, 255, 255, 0.85); --glass-border: rgba(255, 255, 255, 0.3);
+      --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    }
+    body.dark {
+      --bg-body: #09090b; --bg-card: #18181b; --bg-card-subtle: #27272a;
+      --text-main: #f8fafc; --text-muted: #94a3b8; --border-color: #27272a;
+      --color-profit: #34d399; --color-loss: #f87171; --color-neutral: #fbbf24;
+      --glass-bg: rgba(24, 24, 27, 0.75); --glass-border: rgba(255, 255, 255, 0.08);
+      --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+    }
+    body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; }
+    
+    .bg-card { background-color: var(--bg-card); box-shadow: var(--shadow-card); border: 1px solid var(--border-color); }
+    .bg-card-subtle { background-color: var(--bg-card-subtle); border: 1px solid var(--border-color); }
+    .text-muted { color: var(--text-muted); }
+    .border-subtle { border-color: var(--border-color); }
+    .glass { background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); }
+    
+    input, select { background-color: var(--bg-card-subtle); border: 1px solid var(--border-color); color: var(--text-main); transition: all 0.2s; }
+    input:focus, select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+    body.dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+    .tab-content { display: none; animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .tab-content.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .btn-gradient { background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: white; transition: transform 0.1s, box-shadow 0.2s; }
+    .btn-gradient:active { transform: scale(0.97); }
+    .btn-buy-active { background-color: var(--color-profit) !important; color: white !important; border-color: var(--color-profit) !important; }
+    .btn-sell-active { background-color: var(--color-loss) !important; color: white !important; border-color: var(--color-loss) !important; }
+    .btn-inactive { background-color: transparent !important; color: var(--text-muted) !important; border-color: var(--border-color) !important; }
+
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .segmented-control { display: flex; background: var(--bg-card-subtle); padding: 4px; border-radius: 999px; border: 1px solid var(--border-color); }
+    .segment-btn { flex: 1; padding: 8px 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 700; border-radius: 999px; color: var(--text-muted); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); text-align: center; white-space: nowrap; }
+    .segment-btn.active { background: var(--bg-card); color: var(--text-main); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid var(--border-color); }
+
+    .history-card { border-left-width: 4px !important; border-left-style: solid; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; }
+    .history-card:active { transform: scale(0.98); }
+    .history-card.profit { border-left-color: var(--color-profit); }
+    .history-card.loss { border-left-color: var(--color-loss); }
+    .history-card.aporte { border-left-color: #3b82f6; }
+    
+    .font-numbers { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="antialiased pb-28">
+  
+  <!-- FLOATING HEADER -->
+  <header class="fixed top-0 left-0 w-full z-50 glass border-b border-subtle">
+    <div class="max-w-[1440px] mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+          <span class="material-symbols-rounded text-white text-lg">trending_up</span>
+        </div>
+        <div class="flex flex-col">
+          <h1 class="text-xl font-bold tracking-tight leading-none text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-500 to-emerald-400">TrendCycle</h1>
+          <span class="text-[0.6rem] font-numbers text-muted tracking-widest font-semibold mt-0.5">v1.4 - by BLatrese</span>
+        </div>
+      </div>
+      <div class="flex gap-2">
+          <button id="themeToggle" class="w-9 h-9 rounded-full flex items-center justify-center bg-card-subtle border border-subtle transition-transform active:scale-95">
+              <span class="material-symbols-rounded text-muted text-xl" id="themeIcon">dark_mode</span>
+          </button>
+          <button id="settingsBtn" class="w-9 h-9 rounded-full flex items-center justify-center bg-card-subtle border border-subtle transition-transform active:scale-95">
+              <span class="material-symbols-rounded text-blue-500 text-xl">settings</span>
+          </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-2xl mx-auto px-4 md:px-8 pt-24 pb-6">
+    
+    <!-- ASSET SELECTOR -->
+    <div class="mb-6">
+        <div class="segmented-control hide-scrollbar overflow-x-auto" id="globalAssetSelector">
+            <button class="segment-btn active" data-asset="WINFUT">WINFUT</button>
+            <button class="segment-btn" data-asset="WDOFUT">WDOFUT</button>
+            <button class="segment-btn" data-asset="GAUUSD">GAUUSD</button>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÕES -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-card w-full sm:max-w-lg sm:rounded-2xl rounded-t-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-[fadeUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-subtle pb-4">
+                <h2 class="text-xl font-bold flex items-center gap-2"><span class="material-symbols-rounded text-blue-500">tune</span> Ajustes do Motor</h2>
+                <button id="closeSettings" class="w-8 h-8 rounded-full bg-card-subtle flex items-center justify-center text-muted hover:text-main"><span class="material-symbols-rounded">close</span></button>
+            </div>
+
+            <div class="mb-5 bg-blue-500/10 p-4 rounded-xl border border-blue-500/20">
+                <label class="block text-xs font-bold uppercase text-blue-600 dark:text-blue-400 mb-2">Cotação Atual do Dólar (R$)</label>
+                <input type="number" step="0.01" id="cfgUsdRate" class="w-full rounded-lg border px-3 py-2 text-sm font-numbers font-bold bg-transparent">
+            </div>
+
+            <div class="space-y-4 mb-6">
+                <!-- SESSÃO B3 UNIFICADA -->
+                <div class="bg-card-subtle p-4 rounded-xl border-l-4 border-l-blue-500">
+                    <h3 class="font-bold font-numbers text-sm mb-1 flex items-center gap-2">Mercado B3 (Conta Única)</h3>
+                    <p class="text-[10px] text-muted mb-3">WINFUT e WDOFUT dividem o mesmo capital base.</p>
+                    
+                    <div class="mb-3">
+                        <label class="block text-[10px] font-bold uppercase text-muted mb-1">Capital Base B3 Compartilhado (R$)</label>
+                        <input type="number" id="cfgB3Cap" class="w-full rounded border px-3 py-2 text-sm font-numbers font-bold">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-subtle">
+                        <div>
+                            <div class="text-[10px] font-bold text-blue-500 mb-1">WINFUT</div>
+                            <div class="flex gap-2">
+                                <div class="w-1/2"><label class="block text-[8px] uppercase text-muted">A cada (R$)</label><input type="number" id="cfgWinStep" class="w-full rounded border px-2 py-1 text-xs font-numbers"></div>
+                                <div class="w-1/2"><label class="block text-[8px] uppercase text-muted">+ Lote</label><input type="number" step="0.01" id="cfgWinLot" class="w-full rounded border px-2 py-1 text-xs font-numbers"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-bold text-blue-500 mb-1">WDOFUT</div>
+                            <div class="flex gap-2">
+                                <div class="w-1/2"><label class="block text-[8px] uppercase text-muted">A cada (R$)</label><input type="number" id="cfgWdoStep" class="w-full rounded border px-2 py-1 text-xs font-numbers"></div>
+                                <div class="w-1/2"><label class="block text-[8px] uppercase text-muted">+ Lote</label><input type="number" step="0.01" id="cfgWdoLot" class="w-full rounded border px-2 py-1 text-xs font-numbers"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSÃO FOREX -->
+                <div class="bg-card-subtle p-4 rounded-xl border-l-4 border-l-emerald-500">
+                    <h3 class="font-bold font-numbers text-sm mb-3 flex items-center gap-2">Mercado Forex (GAUUSD)</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div><label class="block text-[9px] font-bold uppercase text-muted mb-1">Cap. Base ($)</label><input type="number" id="cfgGauCap" class="w-full rounded border px-2 py-1.5 text-sm font-numbers"></div>
+                        <div><label class="block text-[9px] font-bold uppercase text-muted mb-1">A cada ($)</label><input type="number" id="cfgGauStep" class="w-full rounded border px-2 py-1.5 text-sm font-numbers"></div>
+                        <div><label class="block text-[9px] font-bold uppercase text-blue-500 mb-1">+ Lote</label><input type="number" step="0.01" id="cfgGauLot" class="w-full rounded border px-2 py-1.5 text-sm font-numbers font-bold"></div>
+                    </div>
+                </div>
+            </div>
+            <button id="saveSettingsBtn" class="w-full btn-gradient py-3.5 rounded-xl text-sm font-bold tracking-wide flex justify-center items-center gap-2"><span class="material-symbols-rounded text-[20px]">save</span> SALVAR CONFIGURAÇÕES</button>
+        </div>
+    </div>
+
+    <!-- MODAL DE APORTE/SAQUE -->
+    <div id="cashFlowModal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-card w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl p-6 shadow-2xl animate-[fadeUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-5 border-b border-subtle pb-3">
+                <h2 class="text-xl font-bold flex items-center gap-2 text-main"><span class="material-symbols-rounded text-blue-500">account_balance</span> Fluxo de Caixa</h2>
+                <button id="closeCashModal" class="w-8 h-8 rounded-full bg-card-subtle flex items-center justify-center text-muted hover:text-main"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            
+            <p class="text-xs text-muted mb-4">A movimentação será registrada na curva de capital da conta: <strong id="cashFlowAccountLabel" class="text-blue-500">Mercado B3</strong>.</p>
+            
+            <div class="flex gap-2 p-1.5 bg-card-subtle rounded-2xl border border-subtle mb-4">
+              <button type="button" id="btnAporte" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-buy-active shadow-sm"><span class="material-symbols-rounded text-[16px]">add_circle</span> APORTE</button>
+              <button type="button" id="btnSaque" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-inactive shadow-sm"><span class="material-symbols-rounded text-[16px]">remove_circle</span> SAQUE</button>
+            </div>
+            <input type="hidden" id="cashType" value="aporte">
+
+            <div class="mb-5">
+                <label class="block text-[10px] font-numbers font-bold uppercase text-muted mb-1.5 ml-1">Valor (R$ / $)</label>
+                <input type="text" id="cashValue" class="w-full rounded-xl border border-subtle px-3 py-3 text-lg font-numbers font-bold shadow-sm" required placeholder="0.00">
+            </div>
+
+            <button id="saveCashFlowBtn" class="w-full btn-gradient py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 text-sm tracking-wide">
+                <span class="material-symbols-rounded">done_all</span> CONFIRMAR
+            </button>
+        </div>
+    </div>
+
+    <!-- ABA 1: INÍCIO -->
+    <div id="inicioPanel" class="tab-content active">
+      <div class="bg-card rounded-3xl p-6 text-center mb-5 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
+        <h2 class="text-[0.7rem] font-bold text-muted uppercase tracking-[0.15em] mb-2" id="hojeLabel">Hoje é...</h2>
+        <div id="hojeRecomendacao" class="text-5xl font-black my-3 font-numbers tracking-tighter">--</div>
+        
+        <div id="hojeTargets" class="flex justify-center gap-3 mt-4 mb-4 hidden">
+            <div class="bg-card-subtle px-4 py-2 rounded-xl border border-subtle flex flex-col items-center min-w-[100px]">
+                <span class="text-[9px] font-bold text-muted uppercase">🎯 Alvo Diário</span>
+                <span class="font-numbers font-bold text-sm text-[var(--color-profit)]" id="hTarget">0</span>
+            </div>
+            <div class="bg-card-subtle px-4 py-2 rounded-xl border border-subtle flex flex-col items-center min-w-[100px]">
+                <span class="text-[9px] font-bold text-muted uppercase">🛑 Stop Limit</span>
+                <span class="font-numbers font-bold text-sm text-[var(--color-loss)]" id="hStop">0</span>
+            </div>
+        </div>
+
+        <div id="hojePct" class="text-xs font-numbers text-muted bg-card-subtle inline-block px-3 py-1 rounded-full border border-subtle mt-1 mb-2">Aguardando base de dados...</div>
+
+        <!-- MÓDULO DE GAP -->
+        <div id="homeGapSection" class="mt-4 pt-4 border-t border-subtle hidden">
+            <h3 class="text-[10px] font-numbers font-bold text-muted uppercase tracking-widest mb-3 flex items-center justify-center gap-1.5">
+                <span class="material-symbols-rounded text-[14px]">query_stats</span> Comportamento do Gap Hoje
+            </h3>
+            <div class="flex bg-card-subtle rounded-lg text-[10px] font-bold p-1 border border-subtle max-w-[200px] mx-auto mb-3">
+                <button id="btnGapUpHome" class="flex-1 py-1.5 rounded bg-card text-main shadow-sm transition-all" onclick="toggleHomeGap('up')">ALTA</button>
+                <button id="btnGapDnHome" class="flex-1 py-1.5 rounded text-muted transition-all" onclick="toggleHomeGap('down')">BAIXA</button>
+            </div>
+            
+            <div id="gapUpHome" class="grid grid-cols-4 sm:grid-cols-5 gap-1.5 text-center bg-emerald-50 dark:bg-emerald-500/5 p-3 rounded-2xl border border-emerald-100 dark:border-emerald-500/10">
+                <div><div class="text-[8px] text-muted leading-tight mb-1">Abre Alta</div><div class="text-xs font-numbers font-bold text-emerald-600 dark:text-emerald-400" id="hgUpFreq">0%</div></div>
+                <div><div class="text-[8px] text-[var(--color-loss)] font-bold leading-tight mb-1">Stopou<br>Antes</div><div class="text-xs font-numbers font-bold text-[var(--color-loss)]" id="hgUpStop">0%</div></div>
+                <div><div class="text-[8px] text-muted leading-tight mb-1">Fecha<br>30%</div><div class="text-xs font-numbers font-bold" id="hgUp30">0%</div></div>
+                <div><div class="text-[8px] text-muted leading-tight mb-1">Fecha<br>50%</div><div class="text-xs font-numbers font-bold" id="hgUp50">0%</div></div>
+                <div class="hidden sm:block"><div class="text-[8px] text-muted leading-tight mb-1">Fecha<br>100%</div><div class="text-xs font-numbers font-bold" id="hgUp100">0%</div></div>
+            </div>
+
+            <div id="gapDnHome" class="hidden grid grid-cols-4 sm:grid-cols-5 gap-1.5 text-center bg-red-50 dark:bg-red-500/5 p-3 rounded-2xl border border-red-100 dark:border-red-500/10">
+                <div><div class="text-[8px] text-muted leading-tight mb-1">Abre Baixa</div><div class="text-xs font-numbers font-bold text-red-600 dark:text-red-400" id="hgDnFreq">0%</div></div>
+                <div><div class="text-[8px] text-[var(--color-loss)] font-bold leading-tight mb-1">Stopou<br>Antes</div><div class="text-xs font-numbers font-bold text-[var(--color-loss)]" id="hgDnStop">0%</div></div>
+                <div><div class="text-[8px] text-muted leading-tight mb-1">Fecha<br>30%</div><div class="text-xs font-numbers font-bold" id="hgDn30">0%</div></div>
+                <div><div class="text-[8px] text-muted leading-tight mb-1">Fecha<br>50%</div><div class="text-xs font-numbers font-bold" id="hgDn50">0%</div></div>
+                <div class="hidden sm:block"><div class="text-[8px] text-muted leading-tight mb-1">Fecha<br>100%</div><div class="text-xs font-numbers font-bold" id="hgDn100">0%</div></div>
+            </div>
+            <div class="text-[9px] text-muted mt-2 text-center font-numbers">* Stop calculado pelo MAE médio deste dia. 100% de base.</div>
+        </div>
+      </div>
+
+      <div class="bg-card rounded-3xl p-5 mb-5">
+        <div class="flex justify-between items-end border-b border-subtle pb-4 mb-4">
+          <div>
+            <div class="text-[0.6rem] font-bold uppercase text-muted font-numbers mb-1">Status do Ciclo (<span class="activeAssetLabel text-blue-500">WINFUT</span>)</div>
+            <div id="cicloStatus" class="text-lg font-bold">Início do Ciclo</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[0.6rem] font-bold uppercase text-muted font-numbers mb-1">Lote Ideal P/ Hoje</div>
+            <div id="loteCalculado" class="text-4xl font-black font-numbers text-blue-500 tracking-tighter transition-transform duration-150">0.00</div>
+          </div>
+        </div>
+        
+        <div class="flex gap-3">
+            <div class="flex-1">
+                <select id="sorosFator" class="w-full rounded-xl border px-3 py-3 text-sm font-numbers font-bold text-center appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjOTRhM2I4Ij48cGF0aCBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTE5IDlsLTcgNy03LTciLz48L3N2Zz4=')] bg-no-repeat bg-[length:16px_16px] bg-[position:right_12px_center]">
+                    <option value="1.4">Soros: 1.4x</option>
+                    <option value="1.5">Soros: 1.5x</option>
+                    <option value="1.6">Soros: 1.6x</option>
+                    <option value="2.0">Soros: Dobrar (2.0x)</option>
+                </select>
+            </div>
+            <button id="btnCalcularLote" class="btn-gradient px-6 rounded-xl font-bold font-numbers text-sm shadow-md flex items-center justify-center gap-2">
+                <span class="material-symbols-rounded text-[18px]">calculate</span> GERAR
+            </button>
+        </div>
+      </div>
+
+      <div class="bg-card rounded-3xl p-5 mb-5">
+          <h2 class="text-xs font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2"><span class="material-symbols-rounded text-[16px]">history_toggle_off</span> Nas últimas 4 semanas (Mesmo dia)</h2>
+          <div id="pastDaysList" class="space-y-3">
+              <div class="text-xs font-numbers text-muted text-center py-4 bg-card-subtle rounded-xl border border-dashed border-subtle">Nenhum dado importado.</div>
+          </div>
+      </div>
+    </div>
+
+    <!-- ABA 2: ESTRATÉGIA -->
+    <div id="estrategiaPanel" class="tab-content">
+      <div class="bg-card rounded-3xl p-5 mb-6 shadow-sm border border-subtle">
+        <h2 class="text-sm font-bold mb-5 flex items-center gap-2 text-main"><span class="material-symbols-rounded text-blue-500">database</span> Motor de Análise (<span class="activeAssetLabel">WINFUT</span>)</h2>
+        
+        <div class="space-y-5">
+            <!-- INTEGRAÇÃO DROPBOX -->
+            <div class="bg-blue-50 dark:bg-blue-500/10 p-4 rounded-xl border border-blue-200 dark:border-blue-500/20">
+                <label class="block text-[10px] font-numbers font-bold text-blue-600 dark:text-blue-400 mb-1.5 uppercase tracking-wide">
+                    1. Sincronizar da Nuvem (Dropbox)
+                </label>
+                <div class="flex flex-col gap-2">
+                    <input type="url" id="dropboxUrlInput" placeholder="Cole o link de compartilhamento do Dropbox aqui..." class="w-full rounded-lg border border-blue-300 dark:border-blue-500/30 px-3 py-2 text-xs font-numbers">
+                    <button id="btnSyncDropbox" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-xs flex justify-center items-center gap-1.5 transition-colors shadow-sm">
+                        <span class="material-symbols-rounded text-[16px]">cloud_sync</span> SINCRONIZAR ARQUIVO
+                    </button>
+                </div>
+                <p class="text-[9px] text-blue-500/70 mt-2 font-numbers">* O link fica salvo só para este ativo.</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <div class="h-px bg-border-color flex-1"></div>
+                <span class="text-[9px] font-bold text-muted uppercase">OU</span>
+                <div class="h-px bg-border-color flex-1"></div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-numbers font-bold text-muted mb-1.5 uppercase tracking-wide">Arquivo Local (Manual)</label>
+                <input type="file" id="csvFile" accept=".csv" class="w-full rounded-xl border border-subtle px-3 py-2.5 text-sm font-numbers cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-card-subtle file:text-muted hover:file:bg-border-color transition">
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-numbers font-bold text-muted mb-1.5 uppercase tracking-wide">2. Recência do Stop/Alvo</label>
+                <select id="timeWindow" class="w-full rounded-xl border border-subtle px-3 py-3 text-sm font-numbers font-bold appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSIjOTRhM2I4Ij48cGF0aCBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTE5IDlsLTcgNy03LTciLz48L3N2Zz4=')] bg-no-repeat bg-[length:16px_16px] bg-[position:right_12px_center]">
+                    <option value="30">Últimos 30 Dias</option>
+                    <option value="45">Últimos 45 Dias</option>
+                    <option value="60">Últimos 60 Dias</option>
+                    <option value="90">Últimos 90 Dias</option>
+                    <option value="9999">Todo o Histórico</option>
+                </select>
+            </div>
+        </div>
+      </div>
+
+      <div id="resultsArea" class="hidden animate-[fadeUp_0.4s_ease-out]">
+        <div class="flex items-center gap-2 mb-4 px-2">
+            <div class="h-px bg-border-color flex-1"></div>
+            <span class="text-[10px] font-numbers font-bold uppercase tracking-widest text-muted">Estatísticas por Dia</span>
+            <div class="h-px bg-border-color flex-1"></div>
+        </div>
+        <div id="weekDaysGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 3: REGISTRO -->
+    <div id="registroPanel" class="tab-content">
+      <div class="bg-card rounded-3xl shadow-lg border border-subtle p-6 relative overflow-hidden">
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl"></div>
+
+        <div class="flex justify-between items-center mb-6 relative z-10 border-b border-subtle pb-4">
+          <h2 class="text-xl font-bold flex gap-2 items-center"><span class="material-symbols-rounded text-blue-500">draw</span> Diário de Trade</h2>
+          <button id="openCashFlowBtn" class="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-transform active:scale-95 bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-blue-400 shadow-sm">
+            <span class="material-symbols-rounded text-[18px]">account_balance</span> APORTE / SAQUE
+          </button>
+        </div>
+        
+        <form id="tradeForm" class="space-y-5 relative z-10">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[10px] font-numbers font-bold uppercase text-muted mb-1.5 ml-1">Data</label>
+              <input type="date" id="tradeDate" class="w-full rounded-xl border border-subtle px-3 py-2.5 text-sm font-numbers shadow-sm" required>
+            </div>
+            <div>
+              <label class="block text-[10px] font-numbers font-bold uppercase text-muted mb-1.5 ml-1">Ativo Selecionado</label>
+              <input type="text" id="tradeAsset" class="w-full rounded-xl border border-subtle px-3 py-2.5 text-sm font-numbers font-bold bg-card-subtle text-blue-500" readonly>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-numbers font-bold uppercase text-muted mb-1.5 ml-1">Direção</label>
+            <div class="flex gap-2 p-1.5 bg-card-subtle rounded-2xl border border-subtle">
+              <button type="button" id="buyBtn" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-buy-active shadow-sm"><span class="material-symbols-rounded text-[16px]">trending_up</span> COMPRA</button>
+              <button type="button" id="sellBtn" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-inactive shadow-sm"><span class="material-symbols-rounded text-[16px]">trending_down</span> VENDA</button>
+            </div>
+            <input type="hidden" id="tradeSide" value="buy">
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 items-end">
+            <div>
+              <label class="block text-[9px] sm:text-[10px] font-numbers font-bold uppercase text-blue-500 mb-1.5 ml-1 truncate">Lote</label>
+              <input type="text" id="tradeLot" class="w-full rounded-xl border-2 border-blue-500 px-2 py-3 text-sm font-numbers text-center font-bold shadow-sm" required placeholder="Ex: 0.10">
+            </div>
+            <div>
+              <label class="block text-[9px] sm:text-[10px] font-numbers font-bold uppercase text-muted mb-1.5 ml-1 truncate">Result(R$/$)</label>
+              <input type="text" id="tradeResult" class="w-full rounded-xl border border-subtle px-2 py-3 text-sm font-numbers text-center font-bold shadow-sm" required placeholder="Ex: -50.00">
+            </div>
+            <div class="relative">
+              <label class="block text-[9px] sm:text-[10px] font-numbers font-bold uppercase text-emerald-500 mb-1.5 ml-1 truncate flex items-center gap-1">
+                  Pts/Pips <span class="material-symbols-rounded text-[10px]">auto_awesome</span>
+              </label>
+              <input type="text" id="tradePoints" class="w-full rounded-xl border border-subtle px-2 py-3 text-sm font-numbers text-center font-bold shadow-sm bg-emerald-50/50 dark:bg-emerald-900/10" required>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full btn-gradient py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 text-sm tracking-wide mt-2">
+            <span class="material-symbols-rounded">check_circle</span> REGISTRAR OPERAÇÃO
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ABA 4: HISTÓRICO -->
+    <div id="historicoPanel" class="tab-content">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold flex gap-2 items-center"><span class="material-symbols-rounded text-blue-500">list_alt</span> Histórico (<span class="activeAssetLabel"></span>)</h2>
+        <button id="clearDataBtn" class="text-[10px] font-numbers font-bold text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg px-3 py-1.5 transition-transform active:scale-95">LIMPAR TUDO</button>
+      </div>
+      <div id="historyList" class="space-y-3 pb-4"></div>
+    </div>
+
+    <!-- ABA 5: GRÁFICOS -->
+    <div id="graficosPanel" class="tab-content">
+      <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold flex gap-2 items-center"><span class="material-symbols-rounded text-blue-500">monitoring</span> Dashboard</h2>
+          <select id="chartView" class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-bold font-numbers rounded-lg px-3 py-1.5 outline-none appearance-none cursor-pointer">
+              <option value="current">Ativo Atual Isolado</option>
+              <option value="b3">Conta B3 (WIN + WDO)</option>
+              <option value="global">Carteira Global</option>
+          </select>
+      </div>
+      
+      <div class="bg-card rounded-3xl p-5 mb-5 border border-subtle">
+        <div class="text-[10px] font-numbers font-bold text-muted uppercase tracking-widest mb-4">Curva de Capital Real</div>
+        <div class="relative w-full h-[220px]">
+          <canvas id="equityChart"></canvas>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="bg-card-subtle rounded-2xl p-3 border border-subtle text-center flex flex-col justify-center">
+            <div class="text-[9px] font-numbers font-bold text-muted uppercase mb-1">Saldo Total</div>
+            <div class="text-sm font-bold font-numbers" id="statTotalNet">0.00</div>
+        </div>
+        <div class="bg-card-subtle rounded-2xl p-3 border border-subtle text-center flex flex-col justify-center">
+            <div class="text-[9px] font-numbers font-bold text-muted uppercase mb-1">Crescimento</div>
+            <div class="text-sm font-bold font-numbers" id="statGrowth">0%</div>
+        </div>
+        <div class="bg-card-subtle rounded-2xl p-3 border border-subtle text-center flex flex-col justify-center">
+            <div class="text-[9px] font-numbers font-bold text-muted uppercase mb-1">Média/Dia</div>
+            <div class="text-sm font-bold font-numbers text-blue-500" id="statDailyAvg">0%</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FLOATING BOTTOM NAVIGATION -->
+  <nav class="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-md z-50">
+    <div class="glass rounded-full px-2 py-2 flex justify-between items-center shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-subtle">
+        <button data-tab="inicio" class="tab-footer relative flex flex-col items-center justify-center w-14 h-12 rounded-full text-blue-500 transition-all">
+            <span class="material-symbols-rounded text-[24px] mb-0.5 z-10 transition-transform">home</span>
+            <span class="font-numbers text-[8px] font-bold z-10 opacity-100 transition-opacity">Início</span>
+            <div class="absolute inset-0 bg-blue-500/10 rounded-full scale-100 transition-transform"></div>
+        </button>
+        <button data-tab="estrategia" class="tab-footer relative flex flex-col items-center justify-center w-14 h-12 rounded-full text-muted hover:text-main transition-all">
+            <span class="material-symbols-rounded text-[24px] mb-0.5 z-10 transition-transform">model_training</span>
+            <span class="font-numbers text-[8px] font-bold z-10 opacity-0 transition-opacity">Motor</span>
+            <div class="absolute inset-0 bg-blue-500/10 rounded-full scale-0 transition-transform"></div>
+        </button>
+        <button data-tab="registro" class="tab-footer relative flex flex-col items-center justify-center w-14 h-12 rounded-full text-muted hover:text-main transition-all">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/40 text-white transform -translate-y-2 border-4 border-[var(--bg-body)]">
+                <span class="material-symbols-rounded text-[20px]">add</span>
+            </div>
+            <span class="font-numbers text-[8px] font-bold z-10 hidden">Add</span>
+            <div class="absolute inset-0 bg-blue-500/10 rounded-full scale-0 transition-transform hidden"></div>
+        </button>
+        <button data-tab="historico" class="tab-footer relative flex flex-col items-center justify-center w-14 h-12 rounded-full text-muted hover:text-main transition-all">
+            <span class="material-symbols-rounded text-[24px] mb-0.5 z-10 transition-transform">list_alt</span>
+            <span class="font-numbers text-[8px] font-bold z-10 opacity-0 transition-opacity">Histórico</span>
+            <div class="absolute inset-0 bg-blue-500/10 rounded-full scale-0 transition-transform"></div>
+        </button>
+        <button data-tab="graficos" class="tab-footer relative flex flex-col items-center justify-center w-14 h-12 rounded-full text-muted hover:text-main transition-all">
+            <span class="material-symbols-rounded text-[24px] mb-0.5 z-10 transition-transform">donut_small</span>
+            <span class="font-numbers text-[8px] font-bold z-10 opacity-0 transition-opacity">Dados</span>
+            <div class="absolute inset-0 bg-blue-500/10 rounded-full scale-0 transition-transform"></div>
+        </button>
+    </div>
+  </nav>
+
+  <script>
+    // --- MIGRAÇÃO E BLINDAGEM DE CONFIGURAÇÃO (B3 UNIFICADA) ---
+    const defaultCfg = {
+        usdRate: 5.00,
+        B3: { capBase: 1000 },
+        WINFUT: { capStep: 100, lotStep: 0.01, dropbox: "" },
+        WDOFUT: { capStep: 250, lotStep: 0.01, dropbox: "" },
+        GAUUSD: { capBase: 100, capStep: 100, lotStep: 0.01, dropbox: "" }
+    };
+    let appConfig = JSON.parse(localStorage.getItem('tc_config'));
+    
+    if (!appConfig || typeof appConfig !== 'object') appConfig = defaultCfg;
+    
+    // Migra capitais antigos de WINFUT e WDOFUT para a nova base B3 unificada
+    if (!appConfig.B3) {
+        let oldWin = appConfig.WINFUT?.capBase ? parseFloat(appConfig.WINFUT.capBase) : 500;
+        let oldWdo = appConfig.WDOFUT?.capBase ? parseFloat(appConfig.WDOFUT.capBase) : 500;
+        appConfig.B3 = { capBase: oldWin + oldWdo };
+    }
+    
+    if (!appConfig.WINFUT || !appConfig.WINFUT.capStep) appConfig.WINFUT = defaultCfg.WINFUT;
+    if (!appConfig.WDOFUT || !appConfig.WDOFUT.capStep) appConfig.WDOFUT = defaultCfg.WDOFUT;
+    if (!appConfig.GAUUSD || !appConfig.GAUUSD.capBase) appConfig.GAUUSD = defaultCfg.GAUUSD;
+    if (!appConfig.usdRate) appConfig.usdRate = defaultCfg.usdRate;
+    localStorage.setItem('tc_config', JSON.stringify(appConfig));
+
+    let activeAsset = 'WINFUT';
+    let trades = JSON.parse(localStorage.getItem('tc_lite_trades')) || [];
+    
+    // Migrar antigos aportes isolados para o cofre geral da B3
+    let needsTradeMigration = false;
+    trades.forEach(t => {
+        if ((t.side === 'aporte' || t.side === 'saque') && (t.asset === 'WINFUT' || t.asset === 'WDOFUT')) {
+            t.asset = 'B3'; needsTradeMigration = true;
+        }
+    });
+    if(needsTradeMigration) localStorage.setItem('tc_lite_trades', JSON.stringify(trades));
+
+    let csvDataGlobal = JSON.parse(localStorage.getItem('tc_csv_data')) || { WINFUT: [], WDOFUT: [], GAUUSD: [] };
+    let csvStatsGlobal = {}; 
+    let currentIdealLot = 0;
+
+    // --- CÁLCULO MÁGICO DE PONTOS ---
+    const assetMultipliers = { WINFUT: 0.20, WDOFUT: 10.00, GAUUSD: 1.00 };
+
+    function calculateAutoPoints() {
+        let lotVal = document.getElementById('tradeLot').value.replace(',', '.');
+        let resVal = document.getElementById('tradeResult').value.replace(',', '.');
+        
+        let lot = parseFloat(lotVal);
+        let res = parseFloat(resVal);
+        
+        if (!isNaN(lot) && lot > 0 && !isNaN(res)) {
+            let mult = assetMultipliers[activeAsset] || 1;
+            let pts = res / (lot * mult);
+            document.getElementById('tradePoints').value = pts.toFixed(2);
+        }
+    }
+    document.getElementById('tradeLot').addEventListener('input', calculateAutoPoints);
+    document.getElementById('tradeResult').addEventListener('input', calculateAutoPoints);
+
+    // --- FUNÇÃO DE DATA INTELIGENTE ---
+    function updateFormDefaultDate() {
+        let now = new Date();
+        if (activeAsset === 'GAUUSD' && now.getHours() >= 15) { now.setDate(now.getDate() + 1); }
+        document.getElementById('tradeDate').value = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    }
+    
+    function getTargetStatsDay() {
+        let now = new Date();
+        let realDay = now.getDay();
+        if (activeAsset === 'GAUUSD' && now.getHours() >= 15) { realDay = (realDay + 1) % 7; }
+        if (realDay === 0) realDay = 1; 
+        if (realDay === 6) realDay = 5; 
+        return realDay;
+    }
+
+    // --- TEMA E MODALS ---
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    function toggleTheme() { 
+      document.body.classList.toggle('dark'); 
+      themeIcon.innerText = document.body.classList.contains('dark') ? 'light_mode' : 'dark_mode'; 
+      if(document.getElementById('graficosPanel').classList.contains('active')) renderCharts();
+    }
+    themeToggle.addEventListener('click', toggleTheme);
+    if(window.matchMedia('(prefers-color-scheme: dark)').matches) toggleTheme();
+
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    settingsBtn.addEventListener('click', () => { 
+        document.getElementById('cfgUsdRate').value = parseFloat(appConfig.usdRate) || 5;
+        document.getElementById('cfgB3Cap').value = parseFloat(appConfig.B3.capBase) || 1000;
+        document.getElementById('cfgWinStep').value = parseFloat(appConfig.WINFUT.capStep);
+        document.getElementById('cfgWinLot').value = parseFloat(appConfig.WINFUT.lotStep);
+        document.getElementById('cfgWdoStep').value = parseFloat(appConfig.WDOFUT.capStep);
+        document.getElementById('cfgWdoLot').value = parseFloat(appConfig.WDOFUT.lotStep);
+        document.getElementById('cfgGauCap').value = parseFloat(appConfig.GAUUSD.capBase);
+        document.getElementById('cfgGauStep').value = parseFloat(appConfig.GAUUSD.capStep);
+        document.getElementById('cfgGauLot').value = parseFloat(appConfig.GAUUSD.lotStep);
+        settingsModal.classList.remove('hidden');
+        setTimeout(() => settingsModal.classList.add('opacity-100'), 10);
+    });
+    document.getElementById('closeSettings').addEventListener('click', () => settingsModal.classList.add('hidden'));
+    
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+        appConfig.usdRate = parseFloat(document.getElementById('cfgUsdRate').value) || 5;
+        appConfig.B3 = { capBase: parseFloat(document.getElementById('cfgB3Cap').value) || 1000 };
+        appConfig.WINFUT.capStep = parseFloat(document.getElementById('cfgWinStep').value) || 100;
+        appConfig.WINFUT.lotStep = parseFloat(document.getElementById('cfgWinLot').value) || 0.01;
+        appConfig.WDOFUT.capStep = parseFloat(document.getElementById('cfgWdoStep').value) || 250;
+        appConfig.WDOFUT.lotStep = parseFloat(document.getElementById('cfgWdoLot').value) || 0.01;
+        
+        appConfig.GAUUSD.capBase = parseFloat(document.getElementById('cfgGauCap').value) || 100;
+        appConfig.GAUUSD.capStep = parseFloat(document.getElementById('cfgGauStep').value) || 100;
+        appConfig.GAUUSD.lotStep = parseFloat(document.getElementById('cfgGauLot').value) || 0.01;
+        
+        localStorage.setItem('tc_config', JSON.stringify(appConfig));
+        settingsModal.classList.add('hidden'); updateHomeDashboard();
+    });
+
+    const openCashFlowBtn = document.getElementById('openCashFlowBtn');
+    const cashFlowModal = document.getElementById('cashFlowModal');
+    const btnAporte = document.getElementById('btnAporte');
+    const btnSaque = document.getElementById('btnSaque');
+    const cashType = document.getElementById('cashType');
+
+    openCashFlowBtn.addEventListener('click', () => { 
+        document.getElementById('cashFlowAccountLabel').innerText = (activeAsset === 'WINFUT' || activeAsset === 'WDOFUT') ? 'Mercado B3 (Conta Única)' : 'Mercado Forex (GAUUSD)';
+        cashFlowModal.classList.remove('hidden'); setTimeout(() => cashFlowModal.classList.add('opacity-100'), 10); 
+    });
+    document.getElementById('closeCashModal').addEventListener('click', () => cashFlowModal.classList.add('hidden'));
+
+    btnAporte.addEventListener('click', () => {
+        cashType.value = 'aporte';
+        btnAporte.className = "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-buy-active shadow-sm";
+        btnSaque.className = "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-inactive shadow-sm";
+    });
+    btnSaque.addEventListener('click', () => {
+        cashType.value = 'saque';
+        btnSaque.className = "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-sell-active shadow-sm";
+        btnAporte.className = "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all border btn-inactive shadow-sm";
+    });
+
+    document.getElementById('saveCashFlowBtn').addEventListener('click', () => {
+        let valStr = document.getElementById('cashValue').value.replace(',', '.');
+        let val = parseFloat(valStr);
+        if(!val || val <= 0) { alert("Digite um valor válido."); return; }
+        
+        let finalVal = cashType.value === 'aporte' ? val : -val;
+        let cDate = document.getElementById('tradeDate').value;
+        let cAsset = (activeAsset === 'WINFUT' || activeAsset === 'WDOFUT') ? 'B3' : 'GAUUSD';
+        
+        trades.push({ id: Date.now(), date: cDate, asset: cAsset, side: cashType.value, lot: 0, result: finalVal, points: 0 });
+        localStorage.setItem('tc_lite_trades', JSON.stringify(trades));
+        
+        document.getElementById('cashValue').value = ''; cashFlowModal.classList.add('hidden');
+        alert("Lançamento registrado com sucesso!");
+        if(document.getElementById('graficosPanel').classList.contains('active')) renderCharts();
+        if(document.getElementById('historicoPanel').classList.contains('active')) renderHistory();
+    });
+
+    // --- NAVEGAÇÃO ---
+    const tabBtns = document.querySelectorAll('.tab-footer');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    function updateAssetLabels() {
+      document.querySelectorAll('.activeAssetLabel').forEach(el => el.innerText = activeAsset);
+      document.getElementById('tradeAsset').value = activeAsset;
+      document.getElementById('dropboxUrlInput').value = appConfig[activeAsset].dropbox || '';
+      updateFormDefaultDate();
+    }
+
+    document.querySelectorAll('.segment-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active'); activeAsset = btn.dataset.asset;
+        updateAssetLabels(); updateHomeDashboard(); renderHistory(); 
+        if(document.getElementById('graficosPanel').classList.contains('active')) renderCharts();
+        if(document.getElementById('tradeLot').value) calculateAutoPoints();
+        if (csvDataGlobal[activeAsset] && csvDataGlobal[activeAsset].length > 0) {
+            calculateStatsCsv(csvDataGlobal[activeAsset]);
+        } else { document.getElementById('resultsArea').classList.add('hidden'); }
+      });
+    });
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+        tabContents.forEach(tc => tc.classList.remove('active'));
+        document.getElementById(target + 'Panel').classList.add('active');
+        
+        tabBtns.forEach(b => { 
+            b.classList.remove('text-blue-500'); b.classList.add('text-muted');
+            if(b.querySelector('.scale-100')) { b.querySelector('.scale-100').classList.remove('scale-100'); b.querySelector('.scale-0').classList.add('scale-0'); }
+            if(b.querySelectorAll('span')[1]) { b.querySelectorAll('span')[1].classList.remove('opacity-100'); b.querySelectorAll('span')[1].classList.add('opacity-0'); }
+        });
+        btn.classList.add('text-blue-500'); btn.classList.remove('text-muted');
+        if(btn.dataset.tab !== 'registro') {
+            btn.querySelector('div.absolute').classList.replace('scale-0', 'scale-100');
+            btn.querySelectorAll('span')[1].classList.replace('opacity-0', 'opacity-100');
+        }
+
+        if(target === 'graficos') renderCharts();
+        if(target === 'historico') renderHistory();
+        if(target === 'inicio') updateHomeDashboard();
+        if(target === 'registro') { updateFormDefaultDate(); document.getElementById('tradeLot').value = currentIdealLot; }
+      });
+    });
+
+    // --- LÓGICA DO DASHBOARD ---
+    window.toggleHomeGap = function(type) {
+        document.getElementById('btnGapUpHome').className = "flex-1 py-1.5 rounded text-muted transition-all";
+        document.getElementById('btnGapDnHome').className = "flex-1 py-1.5 rounded text-muted transition-all";
+        
+        if (type === 'up') {
+            document.getElementById('btnGapUpHome').className = "flex-1 py-1.5 rounded bg-card text-main shadow-sm transition-all";
+            document.getElementById('gapUpHome').classList.remove('hidden');
+            document.getElementById('gapDnHome').classList.add('hidden');
+        } else {
+            document.getElementById('btnGapDnHome').className = "flex-1 py-1.5 rounded bg-card text-main shadow-sm transition-all";
+            document.getElementById('gapDnHome').classList.remove('hidden');
+            document.getElementById('gapUpHome').classList.add('hidden');
+        }
+    }
+
+    function updateHomeDashboard() {
+        const diasStr = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+        let now = new Date();
+        let currentHour = now.getHours();
+        let targetStatsDay = getTargetStatsDay();
+        
+        let displayDayStr = diasStr[now.getDay()];
+        if (activeAsset === 'GAUUSD' && currentHour >= 15) {
+            displayDayStr = diasStr[(now.getDay() + 1) % 7] + " (Sessão Aberta)";
+        }
+
+        document.getElementById('hojeLabel').innerText = `Referência: ${displayDayStr}`;
+        const divTargets = document.getElementById('hojeTargets');
+        divTargets.classList.add('hidden');
+        document.getElementById('homeGapSection').classList.add('hidden');
+
+        if(csvStatsGlobal[activeAsset] && csvStatsGlobal[activeAsset][targetStatsDay]) {
+            let s = csvStatsGlobal[activeAsset][targetStatsDay]; let t = s.altas + s.baixas;
+            if(t > 0) {
+                let pct = Math.round((Math.max(s.altas, s.baixas) / t) * 100);
+                if (s.altas > s.baixas) {
+                    document.getElementById('hojeRecomendacao').innerText = "COMPRA"; document.getElementById('hojeRecomendacao').className = "text-5xl font-black my-2 font-numbers tracking-tighter text-[var(--color-profit)]";
+                    document.getElementById('hojePct').innerText = `Histórico de Alta: ${pct}%`;
+                    document.getElementById('hTarget').innerText = calcAvg(s.mfeA); document.getElementById('hStop').innerText = calcAvg(s.maeA);
+                    divTargets.classList.remove('hidden');
+                } else if (s.baixas > s.altas) {
+                    document.getElementById('hojeRecomendacao').innerText = "VENDA"; document.getElementById('hojeRecomendacao').className = "text-5xl font-black my-2 font-numbers tracking-tighter text-[var(--color-loss)]";
+                    document.getElementById('hojePct').innerText = `Histórico de Baixa: ${pct}%`;
+                    document.getElementById('hTarget').innerText = calcAvg(s.mfeB); document.getElementById('hStop').innerText = calcAvg(s.maeB);
+                    divTargets.classList.remove('hidden');
+                } else {
+                    document.getElementById('hojeRecomendacao').innerText = "NEUTRO"; document.getElementById('hojeRecomendacao').className = "text-5xl font-black my-2 font-numbers tracking-tighter text-[var(--color-neutral)]";
+                    document.getElementById('hojePct').innerText = "50/50 - Sem vantagem clara";
+                }
+            }
+            
+            if (s.totalDays > 0) {
+                document.getElementById('homeGapSection').classList.remove('hidden');
+                let pctUp = Math.round((s.gUp.n / s.totalDays) * 100);
+                let sUp = s.gUp.n > 0 ? Math.round((s.gUp.stop / s.gUp.n) * 100) : 0;
+                let c30u = s.gUp.n > 0 ? Math.round((s.gUp.c3 / s.gUp.n) * 100) : 0;
+                let c50u = s.gUp.n > 0 ? Math.round((s.gUp.c5 / s.gUp.n) * 100) : 0;
+                let c100u = s.gUp.n > 0 ? Math.round((s.gUp.c1 / s.gUp.n) * 100) : 0;
+                document.getElementById('hgUpFreq').innerText = pctUp + '%'; document.getElementById('hgUpStop').innerText = sUp + '%';
+                document.getElementById('hgUp30').innerText = c30u + '%'; document.getElementById('hgUp50').innerText = c50u + '%'; document.getElementById('hgUp100').innerText = c100u + '%';
+
+                let pctDn = Math.round((s.gDn.n / s.totalDays) * 100);
+                let sDn = s.gDn.n > 0 ? Math.round((s.gDn.stop / s.gDn.n) * 100) : 0;
+                let c30d = s.gDn.n > 0 ? Math.round((s.gDn.c3 / s.gDn.n) * 100) : 0;
+                let c50d = s.gDn.n > 0 ? Math.round((s.gDn.c5 / s.gDn.n) * 100) : 0;
+                let c100d = s.gDn.n > 0 ? Math.round((s.gDn.c1 / s.gDn.n) * 100) : 0;
+                document.getElementById('hgDnFreq').innerText = pctDn + '%'; document.getElementById('hgDnStop').innerText = sDn + '%';
+                document.getElementById('hgDn30').innerText = c30d + '%'; document.getElementById('hgDn50').innerText = c50d + '%'; document.getElementById('hgDn100').innerText = c100d + '%';
+            }
+        }
+
+        let assetTrades = trades.filter(t => t.asset === activeAsset && t.side !== 'aporte' && t.side !== 'saque').sort((a,b) => new Date(b.date) - new Date(a.date));
+        let level = 1;
+        let weekdayTrades = assetTrades.filter(t => {
+            let [y,m,d] = t.date.split('-');
+            let tradeDay = new Date(y, m-1, d).getDay();
+            if (tradeDay === 0) tradeDay = 1;
+            if (tradeDay === 6) tradeDay = 5;
+            return tradeDay === targetStatsDay;
+        });
+        
+        for (let t of weekdayTrades) { if (t.result > 0) level++; else break; }
+        level = Math.min(level, 5);
+        
+        let cicloText = level === 1 ? "Início do Ciclo" : `${level}º Dia de Acerto`;
+        document.getElementById('cicloStatus').innerHTML = `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2.5 py-1 rounded-md text-sm font-numbers">${cicloText}</span>`;
+        window.tempLevel = level;
+
+        const pastDiv = document.getElementById('pastDaysList');
+        if(csvDataGlobal[activeAsset] && csvDataGlobal[activeAsset].length > 0) {
+            let sortedCsv = [...csvDataGlobal[activeAsset]].sort((a,b) => new Date(b.date) - new Date(a.date));
+            let sDays = sortedCsv.filter(d => new Date(d.date+"T12:00:00Z").getUTCDay() === targetStatsDay).slice(0, 4);
+            let h = ''; let isForex = activeAsset === 'GAUUSD';
+            
+            sDays.forEach(d => {
+                let [y,m,day] = d.date.split('-'); let isUp = d.close > d.open;
+                let mae = isUp ? (d.open - d.low) : (d.high - d.open);
+                let maeDisplay = isForex ? mae.toFixed(3) : mae.toFixed(0);
+                let color = isUp ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]';
+                let bg = isUp ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-red-50 dark:bg-red-500/10';
+                let dir = isUp ? 'ALTA' : 'BAIXA';
+                h += `<div class="flex justify-between items-center text-xs font-numbers border-b border-subtle last:border-0 py-2.5">
+                        <span class="text-muted">${day}/${m}</span> 
+                        <span class="font-bold ${color} ${bg} px-2 py-0.5 rounded">${dir}</span> 
+                        <span class="font-bold">Stp: ${maeDisplay}</span>
+                      </div>`;
+            });
+            pastDiv.innerHTML = h || '<div class="text-xs text-center text-muted py-4">Poucos dados neste dia.</div>';
+        }
+    }
+
+    document.getElementById('btnCalcularLote').addEventListener('click', () => {
+        let cfg = appConfig[activeAsset];
+        let theBase = (activeAsset === 'WINFUT' || activeAsset === 'WDOFUT') ? parseFloat(appConfig.B3.capBase) : parseFloat(cfg.capBase);
+        
+        let lotesAdicionais = Math.floor(theBase / parseFloat(cfg.capStep)); 
+        let loteBase = lotesAdicionais * parseFloat(cfg.lotStep);
+        if(loteBase <= 0) loteBase = parseFloat(cfg.lotStep); 
+
+        let fator = parseFloat(document.getElementById('sorosFator').value) || 1.4;
+        let lIdeal = loteBase;
+        for(let i=1; i<window.tempLevel; i++){ lIdeal *= fator; }
+        
+        currentIdealLot = lIdeal.toFixed(2);
+        const loteEl = document.getElementById('loteCalculado');
+        loteEl.style.transform = 'scale(1.1)';
+        loteEl.innerText = currentIdealLot;
+        setTimeout(() => loteEl.style.transform = 'scale(1)', 150);
+    });
+
+    // --- ENGINE DE PROCESSAMENTO CSV (Local + Nuvem) ---
+    function processCsvArray(dataArray) {
+        let dailyMap = {};
+        dataArray.forEach(row => {
+            if (!row || row.length < 5 || (typeof row[0] === 'string' && row[0].includes('<DATE>'))) return;
+            let dateStr, timeStr, openStr, highStr, lowStr, closeStr;
+            if (row[0] && typeof row[0] === 'string' && row[0].includes('.')) { dateStr = row[0]; timeStr = row[1]; openStr = row[2]; highStr = row[3]; lowStr = row[4]; closeStr = row[5]; } 
+            else if (row[1] && typeof row[1] === 'string' && row[1].includes('/')) { dateStr = row[1]; timeStr = row[2]; openStr = row[3]; highStr = row[4]; lowStr = row[5]; closeStr = row[6]; } 
+            else { return; }
+            if (!dateStr || !timeStr) return; 
+
+            let open = parseFloat(openStr.replace(',','.')); let high = parseFloat(highStr.replace(',','.')); 
+            let low = parseFloat(lowStr.replace(',','.')); let close = parseFloat(closeStr.replace(',','.'));
+            let isoDate = "";
+            if (dateStr.includes('/')) { let [d, m, y] = dateStr.split('/'); isoDate = `${y}-${m}-${d}`; } 
+            else if (dateStr.includes('.')) { isoDate = dateStr.replace(/\./g, '-'); }
+
+            if (!dailyMap[isoDate]) { dailyMap[isoDate] = { date: isoDate, open, high, low, close, minT: timeStr, maxT: timeStr }; } 
+            else {
+                dailyMap[isoDate].high = Math.max(dailyMap[isoDate].high, high); dailyMap[isoDate].low = Math.min(dailyMap[isoDate].low, low);
+                if (timeStr < dailyMap[isoDate].minT) { dailyMap[isoDate].minT = timeStr; dailyMap[isoDate].open = open; }
+                if (timeStr > dailyMap[isoDate].maxT) { dailyMap[isoDate].maxT = timeStr; dailyMap[isoDate].close = close; }
+            }
+        });
+        let sortedArr = Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date));
+        csvDataGlobal[activeAsset] = sortedArr;
+        localStorage.setItem('tc_csv_data', JSON.stringify(csvDataGlobal));
+        calculateStatsCsv(csvDataGlobal[activeAsset]);
+    }
+
+    // Input Local
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        Papa.parse(file, { header: false, skipEmptyLines: true, complete: function(results) { processCsvArray(results.data); } });
+    });
+
+    // Input Nuvem (Dropbox)
+    document.getElementById('dropboxUrlInput').addEventListener('input', (e) => {
+        appConfig[activeAsset].dropbox = e.target.value;
+        localStorage.setItem('tc_config', JSON.stringify(appConfig));
+    });
+
+    document.getElementById('btnSyncDropbox').addEventListener('click', function() {
+        let url = document.getElementById('dropboxUrlInput').value;
+        if(!url || !url.includes('dropbox.com')) return alert("Cole um link válido de compartilhamento do Dropbox!");
+        
+        let modifiedUrl = url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("?dl=0", "");
+        const btn = this;
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-rounded animate-spin">sync</span> SINCRONIZANDO...';
+        
+        Papa.parse(modifiedUrl, {
+            download: true,
+            header: false,
+            skipEmptyLines: true,
+            complete: function(results) {
+                processCsvArray(results.data);
+                btn.innerHTML = '<span class="material-symbols-rounded">cloud_done</span> DADOS ATUALIZADOS!';
+                btn.classList.replace('bg-blue-600', 'bg-emerald-500');
+                setTimeout(() => { btn.innerHTML = originalContent; btn.classList.replace('bg-emerald-500', 'bg-blue-600'); }, 3000);
+            },
+            error: function(err) {
+                alert("Erro ao baixar. Verifique se o link está correto e se o arquivo está público.");
+                btn.innerHTML = originalContent;
+            }
+        });
+    });
+
+    document.getElementById('timeWindow').addEventListener('change', () => { if(csvDataGlobal[activeAsset]) calculateStatsCsv(csvDataGlobal[activeAsset]); });
+
+    function calcAvg(arr) { 
+        if(!arr || !arr.length) return 0;
+        let avg = arr.reduce((a,b)=>a+b,0) / arr.length;
+        let isForex = activeAsset === 'GAUUSD';
+        return isForex ? avg.toFixed(3) : avg.toFixed(0); 
+    }
+
+    function calculateStatsCsv(fullData) {
+        let stats = {
+            1: { name: 'Segunda', altas: 0, baixas: 0, maeA: [], mfeA: [], maeB: [], mfeB: [], wStrk: {1:0,2:0,3:0}, lStrk: {1:0,2:0,3:0}, maxW:0, maxL:0, h: [], gUp: {n:0, stop:0, c1:0, c5:0, c3:0}, gDn: {n:0, stop:0, c1:0, c5:0, c3:0}, totalDays: 0 },
+            2: { name: 'Terça',   altas: 0, baixas: 0, maeA: [], mfeA: [], maeB: [], mfeB: [], wStrk: {1:0,2:0,3:0}, lStrk: {1:0,2:0,3:0}, maxW:0, maxL:0, h: [], gUp: {n:0, stop:0, c1:0, c5:0, c3:0}, gDn: {n:0, stop:0, c1:0, c5:0, c3:0}, totalDays: 0 },
+            3: { name: 'Quarta',  altas: 0, baixas: 0, maeA: [], mfeA: [], maeB: [], mfeB: [], wStrk: {1:0,2:0,3:0}, lStrk: {1:0,2:0,3:0}, maxW:0, maxL:0, h: [], gUp: {n:0, stop:0, c1:0, c5:0, c3:0}, gDn: {n:0, stop:0, c1:0, c5:0, c3:0}, totalDays: 0 },
+            4: { name: 'Quinta',  altas: 0, baixas: 0, maeA: [], mfeA: [], maeB: [], mfeB: [], wStrk: {1:0,2:0,3:0}, lStrk: {1:0,2:0,3:0}, maxW:0, maxL:0, h: [], gUp: {n:0, stop:0, c1:0, c5:0, c3:0}, gDn: {n:0, stop:0, c1:0, c5:0, c3:0}, totalDays: 0 },
+            5: { name: 'Sexta',   altas: 0, baixas: 0, maeA: [], mfeA: [], maeB: [], mfeB: [], wStrk: {1:0,2:0,3:0}, lStrk: {1:0,2:0,3:0}, maxW:0, maxL:0, h: [], gUp: {n:0, stop:0, c1:0, c5:0, c3:0}, gDn: {n:0, stop:0, c1:0, c5:0, c3:0}, totalDays: 0 }
+        };
+
+        let recencyWindow = parseInt(document.getElementById('timeWindow').value);
+        let slicedData = fullData.slice(0, recencyWindow);
+        let reversed = [...slicedData].reverse();
+        
+        reversed.forEach(day => {
+            let wd = new Date(day.date + 'T12:00:00Z').getUTCDay();
+            if(stats[wd]) {
+                let dir = day.close > day.open ? 'W' : (day.close < day.open ? 'L' : 'N');
+                if(dir === 'W') { stats[wd].altas++; stats[wd].maeA.push(day.open-day.low); stats[wd].mfeA.push(day.high-day.open); }
+                if(dir === 'L') { stats[wd].baixas++; stats[wd].maeB.push(day.high-day.open); stats[wd].mfeB.push(day.open-day.low); }
+                if(dir !== 'N') stats[wd].h.push(dir);
+            }
+        });
+
+        for(let i=1; i<=5; i++){
+            let h = stats[i].h, curType = null, count = 0;
+            for(let j=0; j<h.length; j++){
+                if(h[j] === curType) count++;
+                else {
+                    if(count > 0 && curType) {
+                        if(count<=3) { if(curType==='W') stats[i].wStrk[count]++; else stats[i].lStrk[count]++; }
+                        if(curType==='W' && count > stats[i].maxW) stats[i].maxW = count;
+                        if(curType==='L' && count > stats[i].maxL) stats[i].maxL = count;
+                    }
+                    curType = h[j]; count = 1;
+                }
+            }
+            if(count > 0 && curType) {
+                if(count<=3) { if(curType==='W') stats[i].wStrk[count]++; else stats[i].lStrk[count]++; }
+                if(curType==='W' && count > stats[i].maxW) stats[i].maxW = count;
+                if(curType==='L' && count > stats[i].maxL) stats[i].maxL = count;
+            }
+        }
+
+        let avgStops = { 
+            1: { compra: parseFloat(calcAvg(stats[1].maeA)) || 9999, venda: parseFloat(calcAvg(stats[1].maeB)) || 9999 },
+            2: { compra: parseFloat(calcAvg(stats[2].maeA)) || 9999, venda: parseFloat(calcAvg(stats[2].maeB)) || 9999 },
+            3: { compra: parseFloat(calcAvg(stats[3].maeA)) || 9999, venda: parseFloat(calcAvg(stats[3].maeB)) || 9999 },
+            4: { compra: parseFloat(calcAvg(stats[4].maeA)) || 9999, venda: parseFloat(calcAvg(stats[4].maeB)) || 9999 },
+            5: { compra: parseFloat(calcAvg(stats[5].maeA)) || 9999, venda: parseFloat(calcAvg(stats[5].maeB)) || 9999 }
+        };
+
+        for(let i=0; i < fullData.length - 1; i++) {
+            let curr = fullData[i], prev = fullData[i+1];
+            let wd = new Date(curr.date + 'T12:00:00Z').getUTCDay();
+            if(stats[wd]) {
+                stats[wd].totalDays++;
+                let gap = curr.open - prev.close;
+                
+                if(gap > 0) { 
+                    stats[wd].gUp.n++;
+                    let stop_venda = avgStops[wd].venda;
+                    let stopou = (curr.high - curr.open) >= stop_venda;
+                    if(stopou) { stats[wd].gUp.stop++; } 
+                    else {
+                        let closure = (curr.open - curr.low) / gap;
+                        if(closure >= 1.0) stats[wd].gUp.c1++;
+                        if(closure >= 0.5) stats[wd].gUp.c5++;
+                        if(closure >= 0.3) stats[wd].gUp.c3++;
+                    }
+                } else if(gap < 0) {
+                    stats[wd].gDn.n++;
+                    let absGap = Math.abs(gap);
+                    let stop_compra = avgStops[wd].compra;
+                    let stopou = (curr.open - curr.low) >= stop_compra;
+                    if(stopou) { stats[wd].gDn.stop++; } 
+                    else {
+                        let closure = (curr.high - curr.open) / absGap;
+                        if(closure >= 1.0) stats[wd].gDn.c1++;
+                        if(closure >= 0.5) stats[wd].gDn.c5++;
+                        if(closure >= 0.3) stats[wd].gDn.c3++;
+                    }
+                }
+            }
+        }
+        
+        csvStatsGlobal[activeAsset] = stats;
+        renderDashboardCsv(stats); updateHomeDashboard();
+    }
+
+    window.toggleGap = function(btn, type, dayId) {
+        let parent = btn.parentElement;
+        parent.querySelectorAll('button').forEach(b => { b.classList.remove('bg-card', 'text-main', 'shadow-sm'); b.classList.add('text-muted'); });
+        btn.classList.remove('text-muted'); btn.classList.add('bg-card', 'text-main', 'shadow-sm');
+        document.getElementById(`gap-up-${dayId}`).classList.add('hidden');
+        document.getElementById(`gap-down-${dayId}`).classList.add('hidden');
+        document.getElementById(`gap-${type}-${dayId}`).classList.remove('hidden');
+    }
+
+    function renderDashboardCsv(stats) {
+        const grid = document.getElementById('weekDaysGrid'); grid.innerHTML = '';
+        for (let i = 1; i <= 5; i++) {
+            let s = stats[i]; let t = s.altas + s.baixas; if (t === 0) continue;
+            let pct = Math.round((Math.max(s.altas, s.baixas) / t) * 100); if (s.altas === s.baixas) pct = 50;
+            let dir = 'NEUTRO', color = 'text-[var(--color-neutral)]';
+            if (s.altas > s.baixas) { dir = `ALTA (${pct}%)`; color = 'text-[var(--color-profit)]'; } 
+            else if (s.baixas > s.altas) { dir = `BAIXA (${pct}%)`; color = 'text-[var(--color-loss)]'; }
+
+            let maA = calcAvg(s.maeA), mfA = calcAvg(s.mfeA), maB = calcAvg(s.maeB), mfB = calcAvg(s.mfeB);
+
+            let html = `
+                <div class="bg-card rounded-2xl p-4 border border-subtle">
+                    <div class="font-numbers text-sm font-bold border-b border-subtle pb-2 flex justify-between items-end">
+                        ${s.name} <span class="text-[9px] text-muted">${t} pregões</span>
+                    </div>
+                    <div class="text-xl font-bold ${color} font-numbers mt-2 mb-2 tracking-tight">${dir}</div>`;
+            
+            if (s.altas > s.baixas) {
+                html += `
+                <div class="bg-card-subtle p-2.5 rounded-xl border border-subtle font-numbers text-xs mt-2 flex justify-between">
+                    <div><span class="text-[9px] text-muted block mb-0.5">STOP</span><span class="text-[var(--color-loss)] font-bold">${maA}</span></div>
+                    <div class="text-right"><span class="text-[9px] text-muted block mb-0.5">ALVO</span><span class="text-[var(--color-profit)] font-bold">${mfA}</span></div>
+                </div>`;
+            } else {
+                html += `
+                <div class="bg-card-subtle p-2.5 rounded-xl border border-subtle font-numbers text-xs mt-2 flex justify-between">
+                    <div><span class="text-[9px] text-muted block mb-0.5">STOP</span><span class="text-[var(--color-loss)] font-bold">${maB}</span></div>
+                    <div class="text-right"><span class="text-[9px] text-muted block mb-0.5">ALVO</span><span class="text-[var(--color-profit)] font-bold">${mfB}</span></div>
+                </div>`;
+            }
+            html += `
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <div class="bg-emerald-50 dark:bg-emerald-500/5 p-2 rounded-xl border border-emerald-100 dark:border-emerald-500/10 flex flex-col justify-between">
+                        <div>
+                            <div class="text-[8px] font-numbers font-bold text-[var(--color-profit)] mb-1 uppercase text-center">Acertos Seguidos</div>
+                            <div class="flex justify-between text-[10px] font-numbers px-1"><span class="text-muted">1x</span><b>${s.wStrk[1]}</b></div>
+                            <div class="flex justify-between text-[10px] font-numbers px-1"><span class="text-muted">2x</span><b>${s.wStrk[2]}</b></div>
+                            <div class="flex justify-between text-[10px] font-numbers px-1"><span class="text-muted">3x</span><b>${s.wStrk[3]}</b></div>
+                        </div>
+                        <div class="mt-2 pt-1 border-t border-emerald-200 dark:border-emerald-500/20 text-[10px] font-numbers text-center text-[var(--color-profit)]">MÁXIMO: <b>${s.maxW}</b></div>
+                    </div>
+                    <div class="bg-red-50 dark:bg-red-500/5 p-2 rounded-xl border border-red-100 dark:border-red-500/10 flex flex-col justify-between">
+                        <div>
+                            <div class="text-[8px] font-numbers font-bold text-[var(--color-loss)] mb-1 uppercase text-center">Erros Seguidos</div>
+                            <div class="flex justify-between text-[10px] font-numbers px-1"><span class="text-muted">1x</span><b>${s.lStrk[1]}</b></div>
+                            <div class="flex justify-between text-[10px] font-numbers px-1"><span class="text-muted">2x</span><b>${s.lStrk[2]}</b></div>
+                            <div class="flex justify-between text-[10px] font-numbers px-1"><span class="text-muted">3x</span><b>${s.lStrk[3]}</b></div>
+                        </div>
+                        <div class="mt-2 pt-1 border-t border-red-200 dark:border-red-500/20 text-[10px] font-numbers text-center text-[var(--color-loss)]">MÁXIMO: <b>${s.maxL}</b></div>
+                    </div>
+                </div>`;
+            
+            let pctUp = s.totalDays > 0 ? Math.round((s.gUp.n / s.totalDays) * 100) : 0;
+            let c30u = s.gUp.n > 0 ? Math.round((s.gUp.c3 / s.gUp.n) * 100) : 0;
+            let c50u = s.gUp.n > 0 ? Math.round((s.gUp.c5 / s.gUp.n) * 100) : 0;
+            let c100u = s.gUp.n > 0 ? Math.round((s.gUp.c1 / s.gUp.n) * 100) : 0;
+
+            let pctDn = s.totalDays > 0 ? Math.round((s.gDn.n / s.totalDays) * 100) : 0;
+            let c30d = s.gDn.n > 0 ? Math.round((s.gDn.c3 / s.gDn.n) * 100) : 0;
+            let c50d = s.gDn.n > 0 ? Math.round((s.gDn.c5 / s.gDn.n) * 100) : 0;
+            let c100d = s.gDn.n > 0 ? Math.round((s.gDn.c1 / s.gDn.n) * 100) : 0;
+
+            html += `
+                <div class="mt-4 border-t border-subtle pt-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[9px] font-bold uppercase text-muted">GAP GLOBAL (${s.totalDays} dias)</span>
+                        <div class="flex bg-card-subtle rounded text-[8px] font-bold p-0.5 border border-subtle">
+                            <button class="px-2 py-1 rounded bg-card text-main shadow-sm" onclick="toggleGap(this, 'up', ${i})">ALTA</button>
+                            <button class="px-2 py-1 rounded text-muted" onclick="toggleGap(this, 'down', ${i})">BAIXA</button>
+                        </div>
+                    </div>
+                    <div id="gap-up-${i}" class="grid grid-cols-4 gap-1 text-center bg-emerald-50 dark:bg-emerald-500/5 p-2 rounded-xl border border-emerald-100 dark:border-emerald-500/10">
+                        <div><div class="text-[8px] text-muted">Frequência</div><div class="text-[10px] font-numbers font-bold text-emerald-600 dark:text-emerald-400">${pctUp}%</div></div>
+                        <div><div class="text-[8px] text-muted">Fecha 30%</div><div class="text-[10px] font-numbers font-bold">${c30u}%</div></div>
+                        <div><div class="text-[8px] text-muted">Fecha 50%</div><div class="text-[10px] font-numbers font-bold">${c50u}%</div></div>
+                        <div><div class="text-[8px] text-muted">Fecha 100%</div><div class="text-[10px] font-numbers font-bold">${c100u}%</div></div>
+                    </div>
+                    <div id="gap-down-${i}" class="hidden grid grid-cols-4 gap-1 text-center bg-red-50 dark:bg-red-500/5 p-2 rounded-xl border border-red-100 dark:border-red-500/10">
+                        <div><div class="text-[8px] text-muted">Frequência</div><div class="text-[10px] font-numbers font-bold text-red-600 dark:text-red-400">${pctDn}%</div></div>
+                        <div><div class="text-[8px] text-muted">Fecha 30%</div><div class="text-[10px] font-numbers font-bold">${c30d}%</div></div>
+                        <div><div class="text-[8px] text-muted">Fecha 50%</div><div class="text-[10px] font-numbers font-bold">${c50d}%</div></div>
+                        <div><div class="text-[8px] text-muted">Fecha 100%</div><div class="text-[10px] font-numbers font-bold">${c100d}%</div></div>
+                    </div>
+                </div></div>`;
+            grid.innerHTML += html;
+        }
+        document.getElementById('resultsArea').classList.remove('hidden');
+    }
+
+    // --- ABA REGISTRO (FORM) ---
+    document.getElementById('tradeForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      let lotStr = document.getElementById('tradeLot').value.replace(',', '.');
+      let resStr = document.getElementById('tradeResult').value.replace(',', '.');
+      let ptsStr = document.getElementById('tradePoints').value.replace(',', '.');
+      
+      trades.push({ 
+          id: Date.now(), 
+          date: document.getElementById('tradeDate').value, 
+          asset: activeAsset, 
+          side: document.getElementById('tradeSide').value, 
+          lot: parseFloat(lotStr), 
+          result: parseFloat(resStr), 
+          points: parseFloat(ptsStr) 
+      });
+      localStorage.setItem('tc_lite_trades', JSON.stringify(trades));
+      
+      document.getElementById('tradeLot').value = ''; 
+      document.getElementById('tradeResult').value = ''; 
+      document.getElementById('tradePoints').value = '';
+      
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="material-symbols-rounded">check</span> SALVO!';
+      btn.classList.add('bg-emerald-500');
+      
+      setTimeout(() => { btn.innerHTML = originalText; btn.classList.remove('bg-emerald-500'); }, 1500);
+      updateHomeDashboard();
+    });
+
+    // --- ABA HISTÓRICO E GRÁFICOS ---
+    function formatCurrency(val, currency = 'R$') { return (val < 0 ? "-" : "") + currency + " " + (Math.abs(val)).toFixed(2); }
+    
+    function renderHistory() {
+      const list = document.getElementById('historyList'); list.innerHTML = '';
+      
+      let filtered = trades.filter(t => {
+          if(activeAsset === 'WINFUT' || activeAsset === 'WDOFUT') return t.asset === activeAsset || t.asset === 'B3';
+          return t.asset === activeAsset;
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      if(filtered.length === 0) { list.innerHTML = '<div class="text-center text-sm font-numbers text-muted py-12 bg-card-subtle rounded-2xl border border-dashed border-subtle">Nenhuma operação registrada.</div>'; return; }
+      
+      let curr = activeAsset === 'GAUUSD' ? '$' : 'R$';
+      filtered.forEach(t => {
+        const isCash = (t.side === 'aporte' || t.side === 'saque');
+        const isP = t.result >= 0; 
+        const c = isP ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]'; 
+        
+        let iconStr = '', iconBg = '', title = '';
+        if (isCash) {
+            iconStr = t.side === 'aporte' ? 'account_balance' : 'account_balance_wallet';
+            iconBg = isP ? 'bg-blue-50 text-blue-500 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400';
+            title = t.side.toUpperCase() + (t.asset === 'B3' ? ' (Conta Única B3)' : '');
+        } else {
+            iconStr = t.side === 'buy' ? 'trending_up' : 'trending_down';
+            iconBg = isP ? 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400';
+            title = `Lote: ${t.lot} (${t.asset})`;
+        }
+        const [y,m,d] = t.date.split('-');
+        
+        list.innerHTML += `
+        <div class="bg-card rounded-2xl p-4 shadow-sm border border-subtle history-card ${isCash ? 'aporte' : (isP?'profit':'loss')}">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center"><span class="material-symbols-rounded text-[18px]">${iconStr}</span></div>
+                <div>
+                    <div class="font-numbers text-[10px] text-muted mb-0.5">${d}/${m} • ${title}</div>
+                    <div class="font-numbers font-bold text-sm ${c}">${formatCurrency(t.result, curr)}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right"><div class="font-numbers text-[11px] font-bold text-muted">${!isCash ? t.points+' pts' : ''}</div></div>
+                <button onclick="deleteTrade(${t.id})" class="w-8 h-8 rounded-full bg-card-subtle flex items-center justify-center text-muted hover:text-red-500 transition-colors"><span class="material-symbols-rounded text-[18px]">delete</span></button>
+            </div>
+        </div>`;
+      });
+    }
+
+    window.deleteTrade = function(id) { if(confirm("Excluir registro?")) { trades = trades.filter(t => t.id !== id); localStorage.setItem('tc_lite_trades', JSON.stringify(trades)); renderHistory(); renderCharts(); updateHomeDashboard(); } };
+    document.getElementById('clearDataBtn').addEventListener('click', () => { if(confirm("Apagar TODO o histórico visualizado?")) { trades = trades.filter(t => !(t.asset === activeAsset || (activeAsset !== 'GAUUSD' && t.asset === 'B3'))); localStorage.setItem('tc_lite_trades', JSON.stringify(trades)); renderHistory(); renderCharts(); updateHomeDashboard(); } });
+
+    let equityChart = null;
+    document.getElementById('chartView').addEventListener('change', renderCharts);
+
+    function renderCharts() {
+      let view = document.getElementById('chartView').value;
+      let chartTrades = [];
+      let baseCap = 0;
+
+      if (view === 'current') {
+          // No modo individual, ele pega as operações do ativo isolado + os aportes da conta dele
+          if (activeAsset === 'WINFUT' || activeAsset === 'WDOFUT') {
+              chartTrades = trades.filter(t => t.asset === activeAsset || t.asset === 'B3');
+              baseCap = parseFloat(appConfig.B3.capBase) || 1000;
+          } else {
+              chartTrades = trades.filter(t => t.asset === activeAsset); 
+              baseCap = parseFloat(appConfig.GAUUSD.capBase) || 100;
+          }
+      } else if (view === 'b3') {
+          chartTrades = trades.filter(t => t.asset === 'WINFUT' || t.asset === 'WDOFUT' || t.asset === 'B3'); 
+          baseCap = parseFloat(appConfig.B3.capBase) || 1000;
+      } else { 
+          chartTrades = [...trades]; 
+          let usdR = parseFloat(appConfig.usdRate) || 1;
+          baseCap = (parseFloat(appConfig.B3.capBase) || 1000) + ((parseFloat(appConfig.GAUUSD.capBase) || 100) * usdR);
+      }
+
+      if (baseCap <= 0) baseCap = 1;
+
+      if(chartTrades.length === 0) {
+        document.getElementById('statTotalNet').innerText = "0.00"; document.getElementById('statTotalNet').className = "text-sm font-bold font-numbers text-muted";
+        document.getElementById('statGrowth').innerText = "0%"; document.getElementById('statGrowth').className = "text-sm font-bold font-numbers text-muted"; 
+        document.getElementById('statDailyAvg').innerText = "0%";
+        if(equityChart) equityChart.destroy(); return;
+      }
+
+      chartTrades.sort((a,b) => new Date(a.date) - new Date(b.date));
+      let balance = 0; let eqData = [], labels = [];
+      let uniqueDays = new Set(); let totalAportes = 0;
+
+      eqData.push(baseCap);
+      labels.push(0);
+
+      chartTrades.forEach((t, i) => {
+          let res = parseFloat(t.result) || 0;
+          if (view === 'global' && t.asset === 'GAUUSD') res = res * (parseFloat(appConfig.usdRate) || 1);
+          
+          if(t.side === 'aporte' || t.side === 'saque') { totalAportes += res; }
+          
+          balance += res; 
+          eqData.push(baseCap + balance); 
+          labels.push(i + 1);
+          if (t.side !== 'aporte' && t.side !== 'saque') uniqueDays.add(t.date);
+      });
+
+      let currSign = (view === 'current' && activeAsset === 'GAUUSD') ? '$' : 'R$';
+      
+      let lucroLiquido = balance - totalAportes; 
+      let saldoTotal = baseCap + balance; 
+      let capitalTotalInvestido = baseCap + totalAportes; 
+      
+      let growthPct = capitalTotalInvestido > 0 ? (lucroLiquido / capitalTotalInvestido) * 100 : 0;
+      let dailyAvg = uniqueDays.size > 0 ? (growthPct / uniqueDays.size) : 0;
+
+      document.getElementById('statTotalNet').innerText = formatCurrency(saldoTotal, currSign);
+      document.getElementById('statTotalNet').className = `text-lg font-bold font-numbers ${lucroLiquido >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]'}`;
+      document.getElementById('statGrowth').innerText = `${growthPct.toFixed(2)}%`;
+      document.getElementById('statGrowth').className = `text-lg font-bold font-numbers ${growthPct >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]'}`;
+      document.getElementById('statDailyAvg').innerText = `${dailyAvg.toFixed(2)}%`;
+
+      const ctx = document.getElementById('equityChart').getContext('2d');
+      if(equityChart) equityChart.destroy();
+      
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)'); gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+      equityChart = new Chart(ctx, {
+        type: 'line', data: { labels: labels, datasets: [{ data: eqData, borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, pointHitRadius: 10, borderWidth: 3 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { color: 'rgba(150, 150, 150, 0.1)' }, border: { display: false } } } }
+      });
+    }
+
+    // INIT
+    updateAssetLabels(); updateHomeDashboard();
+  </script>
+</body>
+</html>
